@@ -1,0 +1,246 @@
+---
+title: "M5 Lab"
+author: "Nuo Wei"
+date: "Fall 2022"
+output:
+  html_document:
+    df_print: paged
+    toc: true
+    toc_depth: '3'
+    code_folding: show
+---
+
+```{r,echo=FALSE,message=FALSE,warning=FALSE}
+require(knitr)
+```
+
+```{r, message=FALSE}
+library(tidyverse)
+library(readxl)
+```
+
+
+# Data Management
+
+```{r}
+hypoxia <- read_xlsx("hypoxia.xlsx")
+#hypoxia
+```
+
+Note that some variables have names that contain spaces. When working with these variables you need to put the name in tick marks. See this example with the variable that is for minimum overnight saturated oxygen (Min Sao2):  
+
+```{r}
+#hypoxia %>% summarize(mean = mean(`Min Sao2`))
+```
+# Part 1: one proportion
+
+
+```{r}
+# 0.05 significance level
+
+xtabs(~CAD, data=hypoxia)
+#x = 26
+#n = 26+255 = 281
+#p_hat = 26/281
+
+
+#p>0.072 (upper-tail)
+prop.test(x=26, n=281, p=0.072, alternative = "greater",correct = FALSE)
+
+
+
+
+```
+let P = true proportion of coronary heart disease (CAD) in this population 
+
+hypotheses:
+H0: prevalence of coronary heart disease (CAD) in this population is equal the U.S. prevalence of 7.2%
+H1: prevalence of coronary heart disease (CAD) in this population is greater than the U.S. prevalence of 7.2%
+
+conditions:
+simple random sample (true)
+At least 5 expected "successes"/"failures" (true)
+
+Z test statistic:
+1.772
+
+p-value: 
+0.09157
+
+Decision: (0.09157 > 0.005)
+Fail to reject H0.
+
+Conclusion:
+we don't have sufficient evidence true proportion with CAD is greater than prevalence of 7.2%
+
+Confidence interval:
+(0.06784976, 1.00000000)
+We are 95% confident that the greater in true proportions is between lower bound 0.06784976 and upper bound 1 between prevalence of CAD in this population and the U.S. prevalence.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+# Part 2: two proportions
+
+```{r}
+# 0.05 significance level
+
+
+
+
+xtabs(~Female + CAD, data = hypoxia) #%>% addmargins()
+
+plot_data <- hypoxia %>% drop_na(Female, CAD) %>% 
+  group_by(Female, CAD) %>% 
+  tally %>% 
+  mutate(percent = n/sum(n))
+
+ggplot(data = plot_data, aes(x = factor(Female), y = percent)) + 
+  geom_bar(stat="identity", aes(fill = factor(Female))) + 
+  facet_wrap(. ~ CAD) +  # separate by mortality status
+  geom_text(aes(label = n), vjust = -0.3) # add counts as text
+
+prop.test(x=c(15,11), n=c(80, 201), alternative = "two.sided",correct = FALSE)
+sqrt(12.014) #Z test statistic
+
+
+
+
+(11*65)/(15*190) # odd ratio 
+
+```
+hypotheses:
+H0: (P_F-P_M equal 0) This is not difference between population proportion for group female and population proportion for group male in the rate of coronary artery disease.
+H1: (P_F-P_M not equal 0) This is a difference between population proportion for group female and population proportion for group male in the rate of coronary artery disease.
+
+
+conditions:
+The sample proportions are from two simple random samples   (true)
+The two groups are independent                              (true)
+For each of the two samples there are at least 5 successes and 5 failures (true) 
+
+Z test statistic:
+3.466122
+
+p-value: 
+0.0005279
+
+Decision: (0.0005279 < 0.005)
+Reject H0.
+
+Conclusion:
+we have sufficient evidence that this is a difference between population proportion for group female and population proportion for group male in the rate of coronary artery disease.
+
+Confidence interval:
+(0.04164759 , 0.22389967)
+We are 95% confident that the proportion with the rate of CAD in male group is 4.2% to 22.4% percentage higher than female group.
+
+odds ratio for having CAD for females compared to males:
+0.2508772
+CAD for the females group lower 0.25 time compared to the males group. 
+
+
+
+
+
+
+
+
+
+
+# Part 3: larger contingency tables
+
+
+```{r}
+c_hypoxia <- hypoxia %>% drop_na(AHI,`TWA MAP`) %>%
+  mutate(highMAP = case_when(`TWA MAP` >= 100 ~ 1,
+                             `TWA MAP` < 100 ~ 0))
+
+tbl <- xtabs(~AHI + highMAP , data=c_hypoxia) #%>% addmargins()
+tbl
+chisq.test(tbl, correct = FALSE)
+
+```
+hypotheses:
+H0: highMAP is independent of baseline AHI
+H1: highMAP is dependent upon baseline AHI
+
+
+conditions:
+The sample proportions are from two simple random samples   (true)
+every group has an expected count of at least 5 (true)
+
+
+Z test statistic:
+3.8392
+
+p-value: 
+0.2794
+
+Decision: (0.2794 > 0.005)
+Fail to reject H0.
+
+Conclusion:
+we have don't have sufficient evidence highMAP is dependent upon baseline AHI.
+
+
+```{r}
+#Fisher's exact test
+tbll <- xtabs(~AHI + highMAP , data=c_hypoxia)
+tbll
+
+fisher.test(tbll)
+```
+hypotheses:
+H0: highMAP is not associated with AHI
+H1: highMAP is associated with AHI
+
+conditions:
+simple random samples   (true)
+
+p-value: 0.2541
+
+Decision: (0.2541 > 0.005)
+Fail to reject H0.
+
+Conclusion:
+we have don't have sufficient evidence highMAP is associated with AHI.
+
+
+From the Fisher's Exact test, we get that there is no evidence highMAP is associated with AHI, in addition, the result is that we don't have sufficient evidence highMAP is dependent upon baseline AHI from chi-squared test of independence on the association between AHI and highMAP. As a result, it does not change the overal conclusion.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+# Session Information
+
+```{r}
+sessionInfo()
+```
