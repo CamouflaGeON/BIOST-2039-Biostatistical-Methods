@@ -1,0 +1,677 @@
+---
+title: "2039 Project"
+author: "Yuxin Ren & Nuo Wei"
+date: "//2022"
+output:
+  html_document:
+    df_print: paged
+    toc: true
+    number_sections: true
+    toc_depth: '3'
+    code_folding: show
+---
+
+
+```{r,echo=FALSE,message=FALSE,warning=FALSE}
+library(dplyr)
+library(ggplot2)
+library(stringr)
+library(stringi)
+library(openxlsx)
+library(tidyverse) 
+library(haven)
+library(emmeans) 
+library(car)
+```
+
+
+
+# Summary
+
+We focus on a worldwide public health issue, obesity, based on
+the data from the Natural Center for Health Statistics in 2017-2018 (NHNES 17-18). The research questions are 
+
+1. Does an elder age imply a higher BMI (higher probability of obesity)?
+
+2. Does a lower income indicate a higher BMI (higher probability of obesity)?
+
+3. Does a long sedentary activitiy lead to a higher BMI (higher probability of obesity)?
+
+4. Does a higher BMI result in a higher SBP/DBP (higher probability of hypertension)?
+
+5. Does a higher BMI cause a higher total cholesterol (higher probability of high cholestorol)?
+
+The variables we selected included as follows:
+
+1. BMXBMI > 30 (categorical)
+
+2. RIDAGEYR - age in years at screening (quantitative)
+
+3. INDFMMPC - family monthly poverty level category (categorical)
+
+4. PAD680 - sitting time on a typical day (quantitative)
+
+5. SBP >= 140 | DBP >= 90 - hypertension (quantitative)
+
+6. LBXTC >= 240 - High cholesterol level (quantitative)
+
+We find the following trends:
+
+1. A high value of the person's age tends to occur with a high value of BMI. However, a high value of the person's age occurs with a low value of BMI within the obese group. 
+
+2. The higher family monthly poverty level index, the higher BMI value. The trend is the same within the obese group.
+
+3. The longer sitting time on a typical day usually occur with a higher value of BMI. The tendency is the same within the obese group.
+
+4. The high value of BMI indicates the high value of SBP/DBP. Within the obese group, the high value of BMI also indicate the high value of SBP/DBP.
+
+5. A high value of the person's BMI tends to occur with a high value of total cholesterol. However, a high value of the peron's BMI tends to occur with a low value of total cholesterol. 
+
+
+
+```{r}
+
+DVSW <- read_xpt("DEMO_J.XPT")  #Demographic Variables and Sample Weights
+
+D_BMI <- read_xpt("BMX_J.XPT")  #BMI data 
+ 
+INQ <- read_xpt("INQ_J.XPT")    #income data
+
+PAQ <- read_xpt("PAQ_J.XPT")    #Physical Activity
+
+BPX <- read_xpt("BPX_J.XPT")    #Blood Pressure
+
+Total <- read_xpt("TCHOL_J.XPT")  #Cholesterol - HDL
+
+
+```
+
+# Description for single variable
+
+## Body mass index (BMI)
+```{r}
+
+D_BMI <- D_BMI %>% drop_na(BMXBMI) %>% 
+  select(SEQN, BMXBMI)
+
+D_BMI %>% summarize(n = n(),
+          mean = mean(BMXBMI), 
+          SD = sd(BMXBMI), 
+          median = median(BMXBMI), 
+          IQR = IQR(BMXBMI),
+          min = min(BMXBMI),
+          max = max(BMXBMI))
+
+ggplot(D_BMI, aes(x = BMXBMI)) + geom_histogram(binwidth = 1)
+
+```
+
+In NHNES 17-18, there are 8005 people's BMI's, ranging from 12.3 kg/m^2^ to 86.2 kg/m^2^. The mean BMI is 26.58 kg/m^2^ with a standard deviation of 8.26 kg/m^2^. The median is 25.8 kg/m^2^ (IQR = 10.9 kg/m^2^) with a min of 12.3 kg/m^2^ and a max of 86.2 kg/m^2^. The histogram is right skewed and centered at around 25 kg/m^2^. 
+
+
+## Age
+
+```{r}
+S_age <- DVSW %>% select(SEQN, RIDAGEYR)
+
+S_age %>% summarize(n = n(),
+          mean = mean(RIDAGEYR), 
+          SD = sd(RIDAGEYR), 
+          median = median(RIDAGEYR), 
+          IQR = IQR(RIDAGEYR),
+          min = min(RIDAGEYR),
+          max = max(RIDAGEYR))
+
+ggplot(S_age, aes(x = RIDAGEYR)) + geom_histogram(binwidth = 1)
+
+
+```
+
+The average age of 9254 people included in NHNES 17-18 is 34.33 years and the median is 31 years (IQR = 47 years). The standard deviation is 25.5 years with a range from 0 years to 80 years. The histogram shows that there are a lot more people younger than one year old and older than 80. 
+
+
+## Family monthly poverty level category
+
+```{r}
+S_IND <- INQ %>% filter(INDFMMPC <= 3) %>% select(SEQN, INDFMMPC)
+
+S_IND %>% group_by(INDFMMPC) %>% summarize(n = n()) %>% mutate(prop = round(n/sum(n), 3)) 
+
+ggplot(S_IND, aes(x = INDFMMPC)) + geom_bar()
+```
+
+8237 people were classified into family monthly poverty level category based on the family monthly poverty level index in NHNES 17-18. There are 3132 people having monthly poverty level index no more than 1.30 (38%) and 1346 people in the level index from 1.30 to 1.85 (16.3%). The other people were classified in the group of monthly poverty level index greater than 1.85 (45.6%). 
+
+
+## Time of sitting in a typical day
+
+```{r}
+S_sedent <- PAQ %>% filter(PAD680 <= 1320) %>% select(SEQN, PAD680)
+
+S_sedent %>% summarize(n = n(),
+          mean = mean(PAD680), 
+          SD = sd(PAD680), 
+          median = median(PAD680), 
+          IQR = IQR(PAD680),
+          min = min(PAD680),
+          max = max(PAD680))
+
+ggplot(S_sedent, aes(x = PAD680)) + geom_histogram(binwidth = 10)
+
+```
+
+5811 people answered the question how much time they usually spend sitting on a typical day in the NHNES 17-18. The average time of people spending sitting on a typical day is 331.68 minutes (about 5.5 hours). The median time of people spending sitting on a typical day is 300 minutes (5 hours) with IQR of 300 minutes (min = 0 minutes, max = 1320 minutes). The standard deviation is 199.15 minutes. The histogram is right skewed and the center is at 250 minutes. 
+
+
+## Systolic blood pressure
+
+```{r}
+S_BPX <- BPX %>% drop_na(BPXSY1) %>%
+  drop_na(BPXDI1) %>%
+  select(SEQN, BPXSY1, BPXDI1)
+
+S_BPX %>% summarize(n = n(),
+          mean = mean(BPXSY1), 
+          SD = sd(BPXSY1), 
+          median = median(BPXSY1), 
+          IQR = IQR(BPXSY1),
+          min = min(BPXSY1),
+          max = max(BPXSY1))
+
+ggplot(S_BPX, aes(x = BPXSY1)) + geom_histogram(binwidth = 1)
+
+```
+
+Among 6302 people in the NHNES 17-18, the average systolic blood pressure is 121.331 mm Hg with the standard deviation of 19.979 mm Hg. The median systolic blood pressure is 118 mm Hg (IQR = 26 mm Hg, min = 72 mm Hg, max = 228 mm Hg). The histogram is right skewed and centered at around 120 mm Hg. 
+
+
+## Diastolic blood pressure
+
+```{r}
+
+S_BPX %>% summarize(n = n(),
+          mean = mean(BPXDI1), 
+          SD = sd(BPXDI1), 
+          median = median(BPXDI1), 
+          IQR = IQR(BPXDI1),
+          min = min(BPXDI1),
+          max = max(BPXDI1))
+
+ggplot(S_BPX, aes(x = BPXDI1)) + geom_histogram(binwidth = 1)
+
+```
+
+The diastolic blood pressure ranges from 0 mm Hg to 136 mm Hg. The average diastolic blood pressure is 67.843 mm Hg with a standard deviation of 16.36 mm Hg. The median diastolic blood pressure is 70 mm Hg (IQR = 16 mm Hg). The histogram is approximately bell shaped excluding the count of 0 mm Hg. The center is between 60 mm Hg and 70 mm Hg. 
+
+
+## Total cholesterol
+
+```{r}
+S_TTL <- Total %>% drop_na(LBXTC) %>% select(SEQN, LBXTC)
+  
+S_TTL %>% summarize(n = n(),
+          mean = mean(LBXTC), 
+          SD = sd(LBXTC), 
+          median = median(LBXTC), 
+          IQR = IQR(LBXTC),
+          min = min(LBXTC),
+          max = max(LBXTC))
+
+ggplot(S_TTL, aes(x = LBXTC)) + geom_histogram(binwidth = 1)
+
+```
+
+There are 6738 people providing total cholesterol ranging from 76 mg/dL to 446 mg/dL. The mean of total cholesterol is 179.895 mg/dL with a standard deviation of 40.602 mg/dL and the median is 176 mg/dL (IQR = 53 mg/dL). The histogram is right skewed and center at around 180 mg/dL. 
+
+
+
+# Bivariate relationship
+
+## BMI and Age
+
+```{r}
+
+injo_Ob_age <- inner_join(S_age, D_BMI, by = "SEQN")
+
+
+injo_Ob_age%>% summarize(n = n())
+
+with(injo_Ob_age, cor(RIDAGEYR, BMXBMI, use="pairwise.complete.obs"))
+
+ggplot(injo_Ob_age, aes(x = RIDAGEYR, y = BMXBMI)) + geom_point()+
+  geom_smooth(method = "lm") +
+  theme_classic()
+  
+  
+  
+  
+Ob_age_lm <- lm(BMXBMI ~ RIDAGEYR, data = injo_Ob_age)
+summary(Ob_age_lm)
+
+
+
+
+```
+
+The correlation coefficient between BMI and age is around 0.46, which indicates a moderate positive correlation. The scatterplot also shows a positive association between people's BMI and age. A high value of the person's age tends to occur with a high value of BMI and a low value of the person’s age tends to occur with a low value of BMI.
+
+b0 = 20.87  
+
+b1 = 0.156
+
+Estimated regression equation is BMI_hat = 20.87 + 0.156 * Age. 
+
+Interpretation: A high value of age tends to occur with a high value of BMI. 
+
+Null hypothesis: the slope of the line describing age and BMI value is 0.
+
+Alternative hypothesis: the slope of the line describing age and BMI value is not 0.
+
+Test statistic: T = 46.43
+
+P-value = 2*10^(-16) (< 0.05)
+
+Decision: reject the null hypothesis
+
+Conclusion: we have evidence that the slope of the line describing age and obesity (BMI > 30) is not 0. 
+
+R-squared = 0.2122, which indicates that about 21.22% of the variation in the BMI can be explained by the linear relationship with age. 
+
+
+## Obesity and age (subgroup)
+
+```{r}
+C_BMI <- D_BMI %>% drop_na(BMXBMI) %>% 
+  filter(BMXBMI > 30)  %>%
+  select(SEQN, BMXBMI)
+
+
+injo_Ob_age <- inner_join(C_BMI, S_age, by = "SEQN")
+
+with(injo_Ob_age, cor(RIDAGEYR, BMXBMI, use="pairwise.complete.obs"))
+
+ggplot(injo_Ob_age, aes(x = RIDAGEYR, y = BMXBMI)) + geom_point() +
+  geom_smooth(method = "lm") +
+  theme_classic()
+
+Ob_age_lm <- lm(BMXBMI ~ RIDAGEYR, data = injo_Ob_age)
+summary(Ob_age_lm)
+
+
+
+
+
+G_BMI <- D_BMI %>% drop_na(BMXBMI) %>% 
+  mutate(group = ifelse(BMXBMI >= 30, 1, 0)) %>%
+  mutate(obesity_group = factor(group, level = c(0, 1), labels = c("No obesity", "Obesity"))) %>%
+  select(SEQN, BMXBMI, obesity_group)
+
+
+G_BMI %>% group_by(obesity_group) %>% summarize(n = n())
+
+
+S_age <- DVSW %>%
+  mutate(agegroup = ifelse(RIDAGEYR < 20, 1, 0)) %>%
+  mutate(age_f = factor(agegroup, level = c(0, 1), labels = c("Older", "Younger"))) %>%
+  select(SEQN, RIDAGEYR, age_f)
+
+injo_Ob_age <- inner_join(G_BMI, S_age, by = "SEQN")
+
+xtabs(~age_f + obesity_group, data = injo_Ob_age) 
+xtabs(~age_f + obesity_group, data = injo_Ob_age) %>% addmargins()
+
+prop.test(x=c(2171, 237), n=c(5175, 2830), correct=FALSE, alternative = "greater")
+
+```
+
+The correlation coefficient between BMI and age is around -0.047, which indicates a weak negative correlation. There is no obvious pattern shown in the scatter plot between BMI and age and the line is showing a slight negative association.
+
+b0 = 37.232
+b1 = -0.015
+
+Estimated regression line is BMI_hat = 37.232 - 0.015 * age. 
+
+Interpretation: A high value of age tends to occur with a low value of BMI value among the obesity group. 
+
+Null hypothesis: the slope of the line describing age and BMI value among the obesity group is 0.
+
+Alternative hypothesis: the slope of the line describing age and BMI value among the obesity group is not 0.
+
+Test statistic: T = -2.305
+
+P-value = 0.0212 (< 0.05)
+
+Decision: reject the null hypothesis
+
+Conclusion: we have evidence that the slope of the line describing age and obesity (BMI > 30) is not 0. 
+
+
+According to CDC, (https://www.cdc.gov/obesity/data/adult.html), the obesity prevalence was 39.8% among adults aged 20 to 39 years, 44.3% among adults aged 40 to 59 years, and 41.5% among adults aged 60 and older, so we investigate the obesity prevalence among people younger than 20 years and people at least 20 years.
+
+Two sample Z test
+
+Null hypothesis: the proportion of obesity in younger group (< 20) is the same as that in older group (>= 20).
+
+Alternative hypothesis: the proportion of obesity in younger group (< 20) is greater than that in older group (>= 20). 
+
+Test statistic: Z = 31.316
+
+P-value = 2.2*10^(-16)
+
+Decision: to reject the null hypothesis
+
+Conclusion: we have evidence that the obesity prevalence in younger group (< 20) is greater than that in older group (>= 20). 
+
+We are 95% confidence that the difference between the obesity prevalence in younger group and the older group is between 32.16% and 100%.
+
+
+## BMI and INDFMMPC
+
+```{r}
+G_BMI <- D_BMI %>% drop_na(BMXBMI) %>% 
+  mutate(group = ifelse(BMXBMI >= 30, 1, 0)) %>%
+  mutate(obesity_group = factor(group, level = c(0, 1), labels = c("No obesity", "Obesity"))) %>%
+  select(SEQN, BMXBMI, obesity_group)
+
+injo_Ob_income <- drop_na(inner_join(S_IND, G_BMI, by = "SEQN"))
+
+injo_Ob_income %>% group_by(INDFMMPC) %>% 
+  summarize(n = n(),
+          mean = mean(BMXBMI), 
+          SD = sd(BMXBMI), 
+          median = median(BMXBMI), 
+          IQR = IQR(BMXBMI),
+          min = min(BMXBMI),
+          max = max(BMXBMI))
+
+ggplot(injo_Ob_income %>% drop_na(BMXBMI, INDFMMPC), aes(x=BMXBMI)) + geom_histogram(binwidth=2) + facet_wrap(~INDFMMPC) 
+
+t.test(INDFMMPC ~ obesity_group, data = injo_Ob_income,
+       alternative = "two.sided",
+       conf.level = 0.95)
+
+```
+
+In the group of family monthly poverty level index no more than 1.30, the average BMI is 25.98 kg/m^2^ and the medain is 24.7 kg/m^2^ (IQR = 11.8 kg/m^2^). In the group of family monthly poverty level index from 1.30 to 1.85, the average BMI is 26.67 kg/m^2^ and the medain is 26.0 kg/m^2^ (IQR = 10.775 kg/m^2^). In the group of family monthly poverty level index greater than 1.85, the average BMI is 26.82 kg/m^2^ and the medain is 26.2 kg/m^2^ (IQR = 10.2 kg/m^2^). The difference between means of group 1 and group 2 is 0.69 kg/m^2^, the difference between means of group 2 and group 3 is 0.15 kg/m^2^, and the difference between means of group 1 and group 3 is 0.84 kg/m^2^. The pattern is that the higher family monthly poverty level index, the higher BMI value. Three side-by-side histograms are all right skewed and centered at around 25 kg/m^2^. 
+
+Two sample T test
+
+Null hypothesis: true difference in the average  between obesity group and no obesity group is 0. 
+
+Alternative hypothesis: true difference in the average family monthly poverty level index between obesity group and no obesity group is not equal to 0. 
+
+Test statistic: -2.3559
+
+P-value = 0.01853 (< 0.05)
+
+Decision: to reject the null hypothesis
+
+Conclusion: we have evidence that the true difference 
+
+
+the p-value
+6.395e-05
+
+reject H0 (p-value < significance level)
+
+We have strong evidence that the true mean change in annual household income by obesity group and no obesity is zero.
+
+we have 95% confident interval that annual household income no obesity is larger 0.2251526  to 0.6576658 on average than obesity group.
+
+
+## Obesity and INDFMMPC - subgroup
+
+```{r}
+
+injo_Ob_income <- drop_na(inner_join(S_IND, C_BMI, by = "SEQN")) %>%
+  mutate(income_group = factor(INDFMMPC, level = c(1, 2, 3), labels = c("Index 1", "Index2", "Index3")))
+
+injo_Ob_income %>% group_by(INDFMMPC) %>% 
+  summarize(n = n(),
+          mean = mean(BMXBMI), 
+          SD = sd(BMXBMI), 
+          median = median(BMXBMI), 
+          IQR = IQR(BMXBMI),
+          min = min(BMXBMI),
+          max = max(BMXBMI))
+
+ggplot(injo_Ob_income %>% drop_na(BMXBMI, INDFMMPC), aes(x = BMXBMI)) + geom_histogram(binwidth = 2) + facet_wrap(~INDFMMPC) 
+
+model.formula <- lm(BMXBMI ~ income_group, data = injo_Ob_income)
+Anova(model.formula)
+
+
+#Ob_age_lm <- lm(BMXBMI ~ , data = injo_Ob_income)
+#summary(Ob_age_lm)
+
+```
+
+In the group of family monthly poverty level index no more than 1.30, the average BMI is 36.93 kg/m^2^ and the median is 35.1 kg/m^2^ (IQR = 7.6 kg/m^2^). In the group of family monthly poverty level index from 1.30 to 1.85, the average BMI is 36.42 kg/m^2^ and the median is 34.5 kg/m^2^ (IQR = 6.35 kg/m^2^). In the group of family monthly poverty level index greater than 1.85, the average BMI is 36.16 kg/m^2^ and the median is 34.5 kg/m^2^ (IQR = 6.6 kg/m^2^). The difference between means of group 1 and group 2 is -0.51 kg/m^2^, the difference between means of group 2 and group 3 is -0.25 kg/m^2^, and the difference between means of group 1 and group 3 is -0.77 kg/m^2^. The pattern is that for obese people, the higher family monthly poverty level index, the lower BMI value. Three side-by-side histograms are all right skewed and centered at around 35 kg/m^2^. 
+
+
+
+## BMI and minutes of sedentary activity
+
+```{r}
+
+injo_Ob_sedent <- drop_na(inner_join(S_sedent, D_BMI, by = "SEQN"))
+
+
+with(injo_Ob_sedent, cor(PAD680, BMXBMI, use="pairwise.complete.obs"))
+
+ggplot(injo_Ob_sedent, aes(x = PAD680, y = BMXBMI)) + geom_point() +
+  geom_smooth(method = "lm") +
+  theme_classic()
+
+
+
+injo_Ob_sedent  %>% 
+  summarize(n = n())
+
+```
+
+The correlation coefficient between BMI and sitting time on a typical day is 0.1117, which indicates a weak positive association. The pattern in the scatter plot also shows a weak positive relationship between sitting time on a typical day (minutes) and BMI. 
+
+
+## Obesity and minutes of sedentary activity - subgroup
+
+```{r}
+
+injo_Ob_sedent <- drop_na(inner_join(S_sedent, C_BMI, by = "SEQN"))
+
+
+with(injo_Ob_sedent, cor(PAD680, BMXBMI, use="pairwise.complete.obs"))
+
+ggplot(injo_Ob_sedent, aes(x = PAD680, y = BMXBMI)) + geom_point() +
+  geom_smooth(method = "lm") +
+  theme_classic()
+
+
+
+
+D_BMI#(overall)
+C_BMI#(obseity)
+
+
+
+
+D_BMI <- D_BMI %>% drop_na(BMXBMI) %>% 
+  select(SEQN, BMXBMI)
+D_BMI
+
+
+
+
+DVSW_gender <- DVSW %>%
+  mutate(gender_f = factor(RIAGENDR , level = c(1, 2), labels = c("Male", "Female"))) %>%
+  select(SEQN, RIAGENDR, gender_f)
+
+injo_Ob_sedent_gender <- drop_na(inner_join(injo_Ob_sedent, DVSW_gender, by = "SEQN"))
+injo_Ob_sedent_gender
+
+
+
+
+
+
+
+
+
+
+
+females <- injo_Ob_sedent_gender %>% filter(gender_f == "Female")
+
+females %>% filter(obesity_group == "Obesity") %>% 
+  summarize(n = n(),
+          mean = mean(PAD680), 
+          SD = sd(PAD680), 
+          median = median(PAD680), 
+          IQR = IQR(PAD680),
+          min = min(PAD680),
+          max = max(PAD680))
+
+
+females %>% filter(obesity_group == "No obesity") %>% summarize(n = n(),
+          mean = mean(PAD680), 
+          SD = sd(PAD680), 
+          median = median(PAD680), 
+          IQR = IQR(PAD680),
+          min = min(PAD680),
+          max = max(PAD680))
+
+
+
+
+
+
+
+
+
+```
+
+The correlation coefficient between BMI and sitting time on a typical day is 0.1119, which indicates a weak positive association. The pattern in the scatter plot also shows a weak positive relationship between sitting time on a typical day (minutes) and BMI. 
+
+
+## BMI and SBP/DBP
+
+```{r}
+# systolic blood pressure (SBP) ≥ 140 mmHg or diastolic blood pressure (DBP) ≥ 90 mmHg
+
+injo_Ob_hyper <- drop_na(inner_join(S_BPX, D_BMI, by = "SEQN"))
+
+with(injo_Ob_hyper, cor(BMXBMI, BPXSY1, use="pairwise.complete.obs"))
+
+ggplot(injo_Ob_hyper, aes(x=BMXBMI, y=BPXSY1)) + 
+  geom_point() +
+  geom_smooth(method = "lm") +
+  theme_classic()
+
+with(injo_Ob_hyper, cor(BMXBMI, BPXDI1, use="pairwise.complete.obs"))
+
+ggplot(injo_Ob_hyper, aes(x=BMXBMI, y=BPXDI1)) + 
+  geom_point() +
+  geom_smooth(method = "lm") +
+  theme_classic()
+
+
+```
+
+The correlation coefficient between BMI and systolic blood pressure (SBP) is 0.3092, which indicates a moderate positive association. The pattern in the scatter plot also shows an obvious positive relationship between BMI and systolic blood pressure (SBP). The high value of BMI indicates the high value of SBP.
+
+
+The correlation coefficient between BMI and diastolic blood pressure (DBP) is 0.2685, which indicates a weak positive association. The pattern in the scatter plot also shows an obvious positive relationship between BMI and DBP. The high value of BMI indicates the high value of DBP. 
+
+
+## Obesity and SBP/DBP - subgroup
+
+```{r}
+
+injo_Ob_hyper <- drop_na(inner_join(S_BPX, C_BMI, by = "SEQN"))
+
+with(injo_Ob_hyper, cor(BMXBMI, BPXSY1, use="pairwise.complete.obs"))
+
+ggplot(injo_Ob_hyper, aes(x=BMXBMI, y=BPXSY1)) + 
+  geom_point() +
+  geom_smooth(method = "lm") +
+  theme_classic()
+
+with(injo_Ob_hyper, cor(BMXBMI, BPXDI1, use="pairwise.complete.obs"))
+
+ggplot(injo_Ob_hyper, aes(x=BMXBMI, y=BPXDI1)) + 
+  geom_point() +
+  geom_smooth(method = "lm") +
+  theme_classic()
+
+
+```
+
+The correlation coefficient between BMI and systolic blookd pressure (SBP) is 0.1107, which indicates a weak positive association. The pattern in the scatter plot also shows a weak positive relationship between BMI and systolic blookd pressure (SBP). The high value of BMI indicates the high value of SBP.
+
+
+The correlation coefficient between BMI and diastolic blood pressure (DBP) is 0.044, which indicates a weak positive association. The pattern in the scatter plot also shows a very weak positive relationship between BMI and DBP. The high value of BMI indicates the high value of DBP.
+
+
+## BMI and total cholesterol
+
+```{r}
+injo_Ob_hyper <- drop_na(inner_join(S_TTL, D_BMI, by = "SEQN"))
+
+with(injo_Ob_hyper, cor(BMXBMI, LBXTC, use="pairwise.complete.obs"))
+
+ggplot(injo_Ob_hyper, aes(x=BMXBMI, y=LBXTC)) + 
+  geom_point() +
+  geom_smooth(method = "lm") +
+  theme_classic()
+
+```
+
+The correlation coefficient between BMI and total cholesterol is 0.15, which indicates a weak positive association. The high value of BMI indicates the high value of total cholesterol and the low value of BMI indicates the low value of total cholesterol. The pattern shows a positive relationship between BMI and total cholesterol.  
+
+
+## Obesity and total cholesterol - subgroup
+
+```{r}
+injo_Ob_hyper <- drop_na(inner_join(S_TTL, C_BMI, by = "SEQN"))
+
+with(injo_Ob_hyper, cor(BMXBMI, LBXTC, use="pairwise.complete.obs"))
+
+ggplot(injo_Ob_hyper, aes(x=BMXBMI, y=LBXTC)) + 
+  geom_point() +
+  geom_smooth(method = "lm") +
+  theme_classic()
+
+```
+
+The correlation coefficient between BMI and total cholesterol is -0.059, which indicates a weak negative association. The high value of BMI indicates the low value of total cholesterol and the low value of BMI indicates the high value of total cholesterol. The pattern shows a very weak negative relationship between BMI and total cholesterol.  
+
+
+```{r}
+injo_Ob_total <- drop_na(inner_join(S_TTL, G_BMI, by = "SEQN"))
+
+injo_Ob_total <- injo_Ob_total %>% 
+                      mutate(highCH = case_when(LBXTC < 240 ~ 0,
+                                                       LBXTC >= 240 ~ 1))
+
+xtabs(~obesity_group + highCH, data = injo_Ob_total) %>% addmargins()
+```
+```{r}
+tbl = xtabs(~obesity_group + highCH, data = injo_Ob_total)
+chisq.test(tbl, correct=FALSE)
+
+```
+
+```{r}
+injo_Ob_SBP <- drop_na(inner_join(S_BPX, G_BMI, by = "SEQN"))
+injo_Ob_DBP <- drop_na(inner_join(S_BPX, G_BMI, by = "SEQN"))
+
+
+injo_Ob_SBP %>% summarise(
+  n=n()
+)
+```
+
+
+
+
+
+
