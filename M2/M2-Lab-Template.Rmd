@@ -1,0 +1,184 @@
+---
+title: "M2 Lab"
+author: "Nuo Wei"
+date: "due 10/02/2022"
+output:
+  html_document:
+    df_print: paged
+    toc: true
+    number_sections: false
+    toc_depth: '3'
+    code_folding: show
+---
+
+```{r,echo=FALSE,message=FALSE,warning=FALSE}
+require(knitr)
+```
+
+# Housekeeping
+
+Load libraries  
+
+```{r}
+library(tidyverse)
+```
+
+Set seed (don't change this)
+
+```{r}
+set.seed(10022022)
+```
+
+
+# Part 1
+
+## 1A
+
+```{r}
+#placebo: X_placebo ~ Normal(mean=-1.8, sd=4.3)
+# p(X<=-2)
+
+pnorm(-2, mean = -1.8, sd=4.3, lower.tail = TRUE)
+
+```
+
+
+
+## 1B  
+
+```{r}
+#treatment: X_treatment ~ Normal(mean = 3.5, sd = 4.2)
+# p(X<=-2)
+
+pnorm(-2, mean = 3.5, sd=4.2, lower.tail = TRUE)
+
+```
+
+
+## 1C
+
+```{r}
+#placebo: X_placebo ~ Normal(mean=-1.8, sd=4.3)
+# p(x<=-2)
+# n=50
+# CLT: X_placebo ~ Normal(mean=-1.8, sd=Nsd)
+
+Nsd <- 4.3/sqrt(50)
+
+pnorm(-2, mean = -1.8, sd=Nsd, lower.tail = TRUE)
+
+#condition: the n must larger than 30
+
+```
+
+# Part 2  
+
+```{r}
+ra <- read_csv("MUP_IHP_RY22_P02_V10_DY20_PrvSvc.csv")
+
+ra <- ra %>% filter(Rndrng_Prvdr_State_Abrvtn == "PA") %>% select(Avg_Mdcr_Pymt_Amt)
+
+ra
+
+```
+
+## 2A 
+
+```{r}
+
+#nrow(ra)
+
+#rep(NA, nrow(ra))
+
+radata <- data.frame(ra_mean = mean(ra$Avg_Mdcr_Pymt_Amt),
+                     ra_sd = sd(ra$Avg_Mdcr_Pymt_Amt))
+radata
+
+
+```
+
+## 2B 
+
+```{r}
+#hist(ra$Avg_Mdcr_Pymt_Amt)
+
+radata$ra_mean
+
+ggplot(ra, aes(x = Avg_Mdcr_Pymt_Amt)) +
+  geom_histogram(aes(y = ..density..), 
+                 color="black", 
+                 fill="white") + 
+  geom_density(color="Blue", size=1)
+
+
+
+qqnorm(ra$Avg_Mdcr_Pymt_Amt)
+qqline(ra$Avg_Mdcr_Pymt_Amt)
+
+```
+It is not a normal distribution:
+From the histogram, we can find that the majority of average amount that Medicare pays are locate in first two bar the counts of the two bar are over the 3000, and counts of rest of data can not beyond the 1000. In this case, the shape of the histogram is not a bell-shaped.
+From the Normal Q-Q Plot, we can observe that there are one parts of distribution of quantiles are not fall roughly along the diagonal line represented an exactly normal distribution. When the theoretical quantiles are greater than 1, the distribution start to rise up and get further and further away from the diagonal line. As a result, average payments come from a population is not a normal distribution.
+
+## 2C 
+
+```{r}
+#10,000 bootstrap samples for the mean of  Avg_Mdcr_Pymt_Amt
+
+bootstrap_Pymt_Amt <- data.frame(mean_Pymt_Amt=rep(NA, 10000),
+                                 sd_Pymt_Amt=rep(NA, 10000))
+
+for (i in 1:10000) {
+  samp <- sample(ra$Avg_Mdcr_Pymt_Amt, size = nrow(ra), replace = TRUE)
+  bootstrap_Pymt_Amt$mean_Pymt_Amt[i] <- mean(samp)
+  bootstrap_Pymt_Amt$sd_Pymt_Amt[i] <- sd(samp)
+  
+}
+
+
+#histogram 
+ggplot(bootstrap_Pymt_Amt, aes(x=mean_Pymt_Amt)) + 
+  geom_histogram(aes(y = ..density.., fill = ..density..),
+                 color="grey")+ 
+  geom_density(color="Red", size=2)
+
+#Q-Q plot
+qqnorm(bootstrap_Pymt_Amt$mean_Pymt_Amt)
+qqline(bootstrap_Pymt_Amt$mean_Pymt_Amt)
+
+#95% confidence interval
+quantile(bootstrap_Pymt_Amt$mean_Pymt_Amt, c(0.025, 0.975))
+
+
+```
+From the density of bootstrapping with 10000 samples, we can observe that this plot is almost bell-shaped and the center of the mean payment amount roughly locate in \$12600, and distribution of two sides of center line are likely same. For the Q-Q plot, the majority of plots fall roughly along the diagonal line. As a result, the distribution of bootstrap of mean is likely be normal distribution.
+
+
+# Session Information
+
+```{r}
+sessionInfo()
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
