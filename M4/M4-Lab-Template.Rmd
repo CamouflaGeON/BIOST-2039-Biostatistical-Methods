@@ -1,0 +1,258 @@
+---
+title: "M4 Lab"
+author: "Nuo Wei"
+date: "Fall 2022"
+output:
+  html_document:
+    df_print: paged
+    toc: true
+    number_sections: true
+    toc_depth: '3'
+    code_folding: show
+---
+
+```{r,echo=FALSE,message=FALSE,warning=FALSE}
+require(knitr)
+```
+
+```{r, message=FALSE, warning=FALSE}
+library(tidyverse)
+library(car) 
+library(emmeans) 
+```
+
+
+```{r}
+load("tumor_growth.RData", verbose=TRUE)
+
+Data_tu_grow<-tumor
+Data_tu_grow
+
+```
+
+# Part 1: Tumor Growth
+
+## Data Management
+
+```{r}
+Data_tu_grow <- Data_tu_grow %>% mutate(treatment_group= factor(Group, 
+                                                                levels = c(1,2,3,4),labels = c("control","drug only",
+                                                                                               "radiation only",
+                                                                                               "drug + radiation")))
+
+Data_tu_grow
+
+```
+
+## Descriptive Statistics
+
+```{r}
+
+ggplot(Data_tu_grow, aes(x=treatment_group, y=Size))+
+  geom_boxplot()
+
+Data_tu_grow %>%
+  group_by(treatment_group) %>%
+  summarize(n = n(),
+            xbar = mean(Size),
+            s = sd(Size)) %>%
+  arrange(xbar)
+
+qqnorm(Data_tu_grow$Size)
+qqline(Data_tu_grow$Size)
+
+
+
+```
+
+
+
+From the box chart, there appear to be a difference in the tumor sizes across those 4 treatments. Compare to other 3 treatment groups, drug + radiation treatment have relatively low average tumor size but higher standard deviation. 
+
+For the Q-Q plot, the third of plots fall roughly along the diagonal line from Theoretical quantiles -0.5 to 1. When the theoretical quantiles are greater than 1 and less than -0.5, the distribution start to rise up or fall down and get further and further away from the diagonal line.
+
+
+
+## ANOVA
+
+
+```{r}
+anova_fmu <- lm(Size ~ factor(treatment_group), data = Data_tu_grow)
+anova_fmu
+
+Anova(anova_fmu)
+```
+H0: the population means of every treatment group are equal
+H1: At least one population means is different
+
+Simple random sample from independent groups (Yes)
+n>30 or normally distributed lead levels     (not sure)
+equal variances across the groups            (No)
+
+Test statistic F=5.6527
+p-value        0.00307   (0.00307<0.05) 
+
+Decision: Reject H0
+Conclusion: At least one mean is different
+
+
+```{r}
+emm_fmu <- emmeans(anova_fmu, pairwise ~ treatment_group, adjust = "bonferroni")
+emm_fmu$contrasts
+
+ci_fmu <- confint(emm_fmu, adjust = "bonferroni")$emmeans
+ci_fmu
+
+plot(ci_fmu, xlab = "Estimated Mean maximum tumor size(mm^3)")
+```
+
+
+
+Since we have rejected the null hypothesis in the overall ANOVA F test before, we want to use post-hoc comparisons for examining the differences in population means. In this case, contrasts which p values <0.05 are statistically significant. Control-(drug + radiation) and radiation only-(drug + radiation) are two contrast we looking for. Summarizing our findings from previous plots and outcomes, we can conclude that drug + radiation treatment yielded the best outcome.
+
+
+
+
+## Kruskal-Wallis
+
+
+```{r}
+ggplot(Data_tu_grow, aes(x=Size)) +
+  geom_histogram(color = "black", fill = "gray") +
+  facet_wrap(~treatment_group) +
+  theme_classic()
+```
+
+
+```{r}
+# 0.05 significance level
+kruskal.test(Size ~ treatment_group, data = Data_tu_grow)
+```
+H0: the population medians of every treatment group are equal
+H1: At least one treatment medians has different tumor size mean
+
+Condition
+k independent populations         (yes)
+Random samples from each pop      (yes)
+Distributions have the same shape (No)
+
+p-value = 0.02311  (0.02311<0.05)
+
+Decision: Reject H0
+
+Conclusion: We have sufficient evidence that at least one median tumor size is different.
+
+The result of Kruskal-Wallis test provides similar outcome from ANOVA.  
+
+
+
+# Part 2: Intubation
+
+## Data Management 
+
+
+```{r}
+load("Laryngoscope.Rdata", verbose=TRUE)
+
+Data_laryngoscope<-laryngoscope
+Data_laryngoscope
+
+Fil_Data_Lary <- Data_laryngoscope %>% filter(attempt1_S_F==1) %>% select(BMI, ease)
+New_Lary <- drop_na(Fil_Data_Lary)
+New_Lary
+```
+
+## Descriptive Statistics
+
+```{r}
+
+ggplot(New_Lary, aes(x=BMI, y=ease))+
+  geom_point()+
+  geom_smooth()
+
+regression_model <- lm(ease ~ BMI, data = New_Lary)
+plot(regression_model, which = c(1:2))
+
+New_Lary %>%
+  summarize(n = n(),
+            BMI_bar = mean(BMI),
+            BMI_s = sd(BMI),
+            ease_bar = mean(ease),
+            ease_s = sd(ease))
+```
+After removing miss value from original data set, we can get mean and standard deviation of BMI is 42.02349 and 5.270023, also, 40.48837 and 28.38257 for ease. In the plot with the relationship between BMI and ease, we can find that relationship line between BMI and ease is undulating, and it is hard to directly point out the linear relationships between two variables. 
+
+
+## Linear Regression  
+
+```{r}
+#0.05 signifiance level for any hypothesis test
+
+ggplot(New_Lary, aes(x=BMI, y=ease))+
+  geom_point() +
+  geom_smooth(method = "lm") +
+  theme_classic()
+
+regression_model <- lm(ease ~ BMI, data = New_Lary)
+summary(regression_model)
+
+confint(regression_model)
+
+
+
+x=35
+y_hat <- 62.7805-0.5305*x
+y_hat
+
+```
+
+write out the estimated regression model: 
+
+b0=62.7805    
+b1=-0.5305
+estimiated regression equation --> y_hat=62.7805-0.5305x
+
+
+
+interpret the estimated effect of BMI (slope):
+
+95% confidence interval (-1.693341, 0.6324041)
+For each 1 point increase in BMI, the estimated ease decrease by 0.535
+(-1.693341, 0.6324041) we use 95% confident interval that for each 1 point increase in BMI the estimated ease increase -1.693314 and 0.6324041.
+
+
+
+perform and interpret the results for the hypothesis test for the slope:
+
+Hypothesis test to see if there is a significant linear relationship between BMI and ease.
+H0:(beta1 = 0) there is no significant linear relationship between BMI and ease.
+H0:(beta1 no= 0) there is significant linear relationship between BMI and ease.
+Test statistic = -0.907
+P-value = 0.3669
+Decision: fail to reject (0.3669 > 0.05)
+We do not have enough evidence to suggest that there is significant linear relationship between BMI and ease.
+
+
+
+interpret the coefficient of determination (R-squared):
+
+R-squard = 0.009702
+0.97 of the variables in ease can be explained by the linear relationship with BMI. 
+
+
+
+estimate the ease of intubation for a patient with a BMI of 35 (you do not need to calculate the interval for this estimate):
+
+we can plug x=35 into the regression equation, the ease of intubation for a patient with a BMI of 35 is 44.213.
+
+
+From what we find from part 2, BMI is not a good predictor of ease of intubation. The most important part is that the average mean of ease is not significant linear function of BMI, there are two distinct ups and downs located in BMI 40 and 50. From the hypothesis test for beta, we get the same result that do not have enough evidence to suggest that there is significant linear relationship between BMI and ease.
+
+
+
+
+# Session Information
+
+```{r}
+sessionInfo()
+```
