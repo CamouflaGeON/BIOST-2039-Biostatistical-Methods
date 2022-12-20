@@ -1,0 +1,248 @@
+---
+title: "M3 Lab"
+author: "Nuo Wei"
+date: "due 10/23/2022"
+output:
+  html_document:
+    df_print: paged
+    toc: true
+    number_sections: false
+    toc_depth: '3'
+    code_folding: show
+---
+
+```{r,echo=FALSE,message=FALSE,warning=FALSE}
+require(knitr)
+```
+
+```{r}
+library(tidyverse)
+
+```
+
+```{r}
+load("acupuncture_data_reduced (1).RData", verbose=TRUE)
+
+acudata<- data
+acudata
+
+```
+
+
+# Part 0
+```{r}
+acudata <- acudata %>% drop_na(pk1,pk2) %>% mutate(change_pk1_pk2 = pk1 - pk2)
+
+#acudata
+
+acudata <- acudata %>% mutate(con_acu_group = factor(group, levels = c(0,1), labels = c("Control", "Acupuncture treatment")))
+
+acudata
+
+```
+
+
+# Part 1  
+
+## Descriptives
+
+```{r}
+ggplot(acudata, aes(x=change_pk1_pk2))+
+  geom_histogram(binwidth = 1, color="black", fill="white") +
+  ggtitle("headache severity for all patients")+
+  xlab("change in headache severity between baseline and 3-month")
+
+acudata %>% drop_na(change_pk1_pk2) %>% 
+  summarize(n = n(),
+            mean = mean(change_pk1_pk2), 
+            SD = sd(change_pk1_pk2), 
+            median = median(change_pk1_pk2), 
+            IQR = IQR(change_pk1_pk2), 
+            min = min(change_pk1_pk2),
+            max = max(change_pk1_pk2))
+
+qqnorm(acudata$change_pk1_pk2)
+qqline(acudata$change_pk1_pk2)
+```
+
+From the distribution of headache severity of all patients, we can observe that this plot is not a almost bell-shaped and the center roughly locate in 4, and spreads about headache severity of two sides of the center line are likely same.
+
+For the Q-Q plot, the majority of plots fall roughly along the diagonal line from Theoretical quantiles -1 to 1. When the theoretical quantiles are greater than 1 and less than -1, the distribution start to rise up or fall down and get further and further away from the diagonal line.
+
+
+## Paired t test
+
+```{r}
+#0.01 significance level
+
+#H_0: (equal 0)change in headache severity (from baseline to 3 months) for patients with chronic headache for all groups
+#H_1: (not equal 0)no change in headache severity (from baseline to 3 months) for patients with chronic headache for all groups
+
+#Condition: simple random sample and n>30
+
+t.test(acudata$change_pk1_pk2,
+       alternative = "two.sided",
+       mu = 0,
+       conf.level = 0.99)
+
+#t = 7.2599, df = 325, p-value = 2.877e-12
+
+#alternative hypothesis: true mean is not equal to 0
+
+#99 percent confidence interval: 3.032054 6.397393
+
+#the value of the test statistic from this sample
+7.2599
+
+#the p-value
+2.877e-12
+
+#reject H0 (p-value < significance level)
+
+#We have strong evidence that the change in headache severity for patients is not 0.
+
+#we have 99% confident interval that headache frequency decrease between 3.032054 and 6.397393 on average. 
+
+
+```
+
+
+
+## Signed rank test
+
+```{r}
+#0.01 significance level
+
+#H_0: (equal 0)median of change in headache severity (from baseline to 3 months) for patients with chronic headache for all groups
+#H_1: (not equal 0)median of no change in headache severity (from baseline to 3 months) for patients with chronic headache for all groups
+
+#conditions: simple random sample and symmetric distribution
+
+wilcox.test(acudata$change_pk1_pk2,
+            alternative = "two.sided",
+            mu = 0,
+            conf.level = 0.99,
+            correct = FALSE)
+
+#the p-value
+5.798e-15
+
+#reject H0 (p-value < significance level)
+
+#We have strong evidence that the median of change in headache severity for patients is not 0.
+
+
+
+
+```
+
+## Summary of part 1 
+From the part 1, we can find that change in headache severity for patients is not 0 by paired t test, and the median of change in headache severity for patients is not 0 by signed rank test. 
+
+In this case, the Wilcoxon Signed-Rank Test is a nonparametric test that uses "signed ranks" to test different the medians of a single population. The findings would change by using parametric inference procedure because nonparametric tests have less strict requirements than parametric tests, also, it is not efficient than parametric tests at the same sample size. 
+
+
+
+
+# Part 2  
+
+## Descriptives
+
+
+```{r}
+ggplot(acudata, aes(x=change_pk1_pk2))+
+  geom_histogram(binwidth = 1, color="black", fill="white") +
+  ggtitle("headache severity for control groups and acupuncture treatment")+
+  xlab("change in headache severity between baseline and 3-month")+
+  facet_wrap(~con_acu_group)
+
+
+
+
+acudata %>% drop_na(change_pk1_pk2) %>% group_by(con_acu_group) %>%
+  summarize(n = n(),
+            mean = mean(change_pk1_pk2), 
+            SD = sd(change_pk1_pk2), 
+            median = median(change_pk1_pk2), 
+            IQR = IQR(change_pk1_pk2), 
+            min = min(change_pk1_pk2),
+            max = max(change_pk1_pk2))
+
+
+```
+From the distribution of the change in headache severity separately for the acupuncture treatment and control groups, we can find that the distribution of control is more likely be bell-shaped compared to acupuncture treatment. The medians of two distributions are roughly locate in 2.75 and 6.
+
+
+
+## Two-sample t test
+
+```{r}
+#0.05 significance level
+
+#H_0: (u_control-u_acupuncture equal 0) difference in headache severity (from baseline to 3 months) by control group and acupuncture treatment is zero.
+#H_1: (u_control-u_acupunct ure not equal 0)difference in headache severity (from baseline to 3 months) by control group and acupuncture treatment is not zero.
+
+#conditions: simple random sample, 2 independent groups, and number of two group > 30.
+
+t.test(change_pk1_pk2 ~ con_acu_group, data = acudata,
+       alternative = "two.sided",
+       conf.level = 0.95)
+
+#the value of the test statistic from this sample
+-2.9006
+
+#the p-value
+0.003979
+
+#reject H0 (p-value < significance level)
+
+#We have strong evidence that the true mean change in headache severity between control group and acupuncture treatment is not 0.
+
+#we have 95% confident interval that headache severity by control group is less 1.192266 to 6.218516 on average than acupuncture treatment group.
+
+```
+
+
+
+## Wilcoxon rank sum test
+
+
+```{r}
+# 0.05 significance level 
+
+#H0: the population median from group Control equal the population median from acupuncture treatment.
+#H1: the population median from group Control is not equal the population median from acupuncture treatment.
+#Conditions: simple random samples from two populations and independent groups
+
+wilcox.test(change_pk1_pk2 ~ con_acu_group, data = acudata,
+       alternative = "two.sided",
+       conf.level = 0.95,
+       correct = FALSE)
+
+#the p-value
+0.001195
+
+#reject H0 (p-value < significance level)
+
+#We have strong evidence that the the population median from group Control is not equal the population median from acupuncture treatment.
+
+
+
+
+
+
+
+```
+
+## Summary of part 2
+From the part 2, we can find that change in headache severity for between the acupuncture treatment and control groups is not 0. Acupuncture treatment on headache severity (from baseline to 3 months) is more 1.192266 to 6.218516 on average efficient than control group. By Two-sample t test, and the population median from group Control is not equal the population median from acupuncture treatment by Wilcoxon rank sum test. 
+
+
+In this case, the Wilcoxon rank sum test is a nonparametric test thatuses ranks to test if two samples are from populations that have the same medians. The findings would change by using parametric inference procedure because nonparametric tests have less strict requirements than parametric tests, also, it is not efficient than parametric tests at the same sample size. 
+
+
+# Session Information
+
+```{r}
+sessionInfo()
+```
