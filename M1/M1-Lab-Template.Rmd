@@ -1,0 +1,412 @@
+---
+title: "M1 Lab"
+author: "Nuo Wei"
+date: "due 9/18/2022"
+output:
+  html_document:
+    df_print: paged
+    toc: true
+    number_sections: false
+    toc_depth: '3'
+    code_folding: show
+---
+
+```{r,echo=FALSE,message=FALSE,warning=FALSE}
+require(knitr)
+
+```
+
+# Load Libraries and Import Data Set
+
+Load libraries  
+
+```{r}
+library(tidyverse)
+
+library(readxl)
+```
+
+Import the data
+
+```{r}
+fileopen <- read_excel("ArthritisTreatment-1.xlsx")
+#view(fileopen)
+fileopen
+```
+
+
+# Part 1: Univariate Descriptions
+
+## Age group 
+
+```{r}
+#fileopen %>% select(AgeGp)
+
+fileopen <- fileopen %>% mutate(AgeGp_newf = factor(AgeGp, levels = c(1, 2), labels = c("40-70 years", "75+ years")))
+
+ggplot(fileopen, aes(x = AgeGp_newf)) + geom_bar()
+
+xtabs(~ AgeGp_newf, data = fileopen) %>% addmargins()
+
+#459-71
+
+```
+#This is a distribution of age groups in the data. We can observe that the record from the age group 40-70 years has 388 more counts than age group 75+. 
+
+
+
+## Age  
+
+```{r}
+ggplot(fileopen, aes(x = Age)) + geom_histogram(binwidth = 1)
+
+ggplot(fileopen, aes(x = Age)) + geom_boxplot()
+
+fileopen %>% drop_na(Age) %>%
+  summarize(n=n(),
+            mean = mean(Age),
+            SD   = sd(Age),
+            median = median(Age),
+            IQR = IQR(Age),
+            min = min(Age),
+            max = max(Age),
+            )
+
+
+```
+#This is a distribution of age in the data. We can observe that the mean and median of this distribution is 60.79 and 59.But there are a lot of missing data in age 71 to 74.
+ 
+ 
+
+## Whether DAS_28 was measured 
+
+```{r}
+#fileopen %>% select(DAS28_YN)
+
+fileopen <- fileopen %>% mutate(DAS28_YN_newf = factor(DAS28_YN, levels = c(1,2), labels = c("no", "yes")))
+
+ggplot(fileopen, aes(x=DAS28_YN_newf)) + geom_bar()
+
+xtabs(~ DAS28_YN_newf, data = fileopen) %>% addmargins()
+
+464 -66
+```
+#This is a distribution of whether DAS_28 was measured in the data. We can observe that the difference of count whether DAS_28 was measured is 398.
+
+
+
+```{r}
+
+
+ggplot(fileopen, aes(x=DAS28_YN_newf)) + geom_bar()+
+  theme_classic() +
+  ggtitle("bar chart of \n ", subtitle = "asdasd")
+
+
+
+
+
+
+
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+## DAS_28 values
+
+```{r}
+fileopen1 <- fileopen%>% drop_na(DAS_28)%>%select(DAS_28)
+
+ggplot(fileopen1, aes(x = DAS_28)) + geom_histogram(binwidth = 1)
+
+fileopen1 %>% drop_na(DAS_28) %>%
+  summarize(n=n(),
+            mean = mean(DAS_28),
+            SD   = sd(DAS_28),
+            median = median(DAS_28),
+            IQR = IQR(DAS_28),
+            min = min(DAS_28),
+            max = max(DAS_28),
+            )
+```
+#This is a distribution of values of DAS_28 in the data. We can observe that mean and median of this distribution is 2.922727 and 2.5.
+
+
+## Years since diagnosis of RA
+
+```{r}
+ggplot(fileopen, aes(x = Yrs_From_Dx)) + geom_histogram(binwidth = 1) 
+
+
+ggplot(fileopen, aes(x = Yrs_From_Dx)) + geom_boxplot()
+
+
+
+fileopen %>% drop_na(Yrs_From_Dx) %>%
+  summarize(n=n(),
+            mean = mean(Yrs_From_Dx),
+            SD   = sd(Yrs_From_Dx),
+            median = median(Yrs_From_Dx),
+            IQR = IQR(Yrs_From_Dx),
+            min = min(Yrs_From_Dx),
+            max = max(Yrs_From_Dx),
+            )
+```
+#This is a distribution of values of DAS_28 in the data. We can observe that mean and median of this distribution is 9.4 and 7.
+
+
+
+# Part 2: Bivariate Descriptions  
+
+## Whether DAS_28 was measured and age group
+
+```{r}
+
+fileopen2 <- fileopen %>% mutate(AgeGp_newf = factor(AgeGp, levels = c(1, 2), labels = c("40-70 years", "75+ years")))
+
+fileopen2 <- fileopen %>% mutate(DAS28_YN_newf = factor(DAS28_YN, levels = c(1,2), labels = c("no", "yes")))
+
+DAS_AGE <- fileopen2 %>% drop_na(AgeGp_newf,DAS28_YN_newf) %>%
+  group_by(AgeGp_newf,DAS28_YN_newf) %>%
+  tally %>%
+  mutate(Percent = n/sum(n))
+DAS_AGE
+
+#ggplot(data = DAS_AGE, aes(x = DAS28_YN_newf, y = Percent)) + 
+#  geom_bar(stat = "identity" , aes(fill = DAS28_YN_newf))+
+#  theme(legend.position = "none") +
+#  xlab("DAS 28 Measured") + ylab("Percent") +
+#  scale_y_continuous(limits = c(0,1))+
+#  facet_wrap(. ~ AgeGp_newf)
+
+
+#diff_Percent(40-70)
+0.86492375-0.13507625
+
+#diff_Percent(75+)
+0.94366197-0.05633803
+
+```
+#In both Age_group, the percent of DAS_28 was not measured is much higher than percent of DAS_28 was measured. In specifically, DAS_28 was not measured is higher 72.98475% than was measured in 40-70 age group, and is higher 88.73239% than was measured in 70+ age group.
+
+
+## Years since diagnosis of RA and age
+
+```{r}
+ggplot(fileopen, aes(x=Age, y=Yrs_From_Dx), color = factor(sex)) + 
+  geom_point(color = "dodgerblue") +
+  backsolve()
+
+#with(fileopen, cor(Age, Yrs_From_Dx, use="pairwise.complete.obs"))
+
+
+
+
+#fileopen %>% drop_na(Age) %>%
+#  summarize(n=n(),
+#            mean = mean(Age),
+#            SD   = sd(Age),
+#            median = median(Age),
+#            IQR = IQR(Age),
+#            min = min(Age),
+#            max = max(Age),
+#            )
+
+#fileopen %>% drop_na(Yrs_From_Dx) %>%
+#  summarize(n=n(),
+#            mean = mean(Yrs_From_Dx),
+#            SD   = sd(Yrs_From_Dx),
+#            median = median(Yrs_From_Dx),
+#            IQR = IQR(Yrs_From_Dx),
+#            min = min(Yrs_From_Dx),
+#            max = max(Yrs_From_Dx),
+#            )
+```
+#From the scatter plot, the relationship between years since diagnosis with RA and patient's age should be positive correlation which means that when patients' age increase the corresponding years since diagnosis also increase in general. The correlation value in this case is 0.1999923.
+
+
+
+
+## Whether DAS_28 was measured and age
+
+```{r}
+fileopen_DAS28_YN <- fileopen %>% mutate(DAS28_YN_newf = factor(DAS28_YN, levels = c(1,2), labels = c("no", "yes")))
+
+
+ggplot(fileopen_DAS28_YN %>% drop_na(DAS28_YN_newf, Age), aes(y=Age, x=DAS28_YN_newf)) + geom_boxplot() +
+  geom_jitter(aes(color=DAS28_YN_newf), alpha=0.5, position = position_jitter(width = 0.25, height = 0))
+
+fileopen_DAS28_YN %>% group_by(DAS28_YN_newf) %>%
+  summarize(n = n(),
+            mean = mean(Age),
+            SD   = sd(Age),
+            median = median(Age),
+            IQR   = IQR(Age),
+            min  = min(Age),
+            max  = max(Age),
+            )
+
+
+#diff_mean(no-yes)
+60.96336-58.74242
+
+#diff_median(no-yes)
+60-58
+
+464/(464+66)
+```
+#In the relationship between DAS_28 and patient's age. The difference of mean and median is very close. In specifically, the mean of age in DAS_28 was no measured is higher 2.22094 than DAS_28 was measured, and the median of age in DAS_28 was no measured is higher 2 than was measured
+
+### Females
+
+```{r}
+fileopen_females <- fileopen %>% filter(Sex==0) %>% mutate(DAS28_YN_newf = factor(DAS28_YN, levels = c(1,2), labels = c("no", "yes")))
+
+
+ggplot(fileopen_females %>% drop_na(DAS28_YN_newf, Age), aes(y=Age, x=DAS28_YN_newf)) + geom_boxplot() +
+  geom_jitter(aes(color=DAS28_YN_newf), alpha=0.5, position = position_jitter(width = 0.25, height = 0))
+
+
+fileopen_females %>% group_by(DAS28_YN_newf) %>%
+  summarize(n = n(),
+            mean = mean(Age),
+            SD   = sd(Age),
+            median = median(Age),
+            IQR   = IQR(Age),
+            min  = min(Age),
+            max  = max(Age),
+            )
+
+#diff_mean(no-yes)
+61.12064-58.47273
+
+#diff_median(no-yes)
+60-58
+
+373/(373+55)
+```
+#In the relationship between DAS_28 and females' age. The difference of mean and median is very close. In specifically, the mean of age in DAS_28 was no measured is higher 2.64791 than DAS_28 was measured, and the median of age in DAS_28 was no measured is higher 2 than was measured.
+
+
+### Males
+
+```{r}
+
+
+fileopen_males <- fileopen %>% filter(Sex==1) %>% mutate(DAS28_YN_newf = factor(DAS28_YN, levels = c(1,2), labels = c("no", "yes")))
+
+
+ggplot(fileopen_males %>% drop_na(DAS28_YN_newf, Age), aes(y=Age, x=DAS28_YN_newf)) + geom_boxplot() +
+  geom_jitter(aes(color=DAS28_YN_newf), alpha=0.5, position = position_jitter(width = 0.25, height = 0))
+
+
+
+
+fileopen_males %>% group_by(DAS28_YN_newf) %>%
+  summarize(n = n(),
+            mean = mean(Age),
+            SD   = sd(Age),
+            median = median(Age),
+            IQR   = IQR(Age),
+            min  = min(Age),
+            max  = max(Age),
+            )
+
+#diff_mean(no-yes)
+60.31868-60.09091
+
+#diff_median(no-yes)
+59-59
+
+91/(91+11)
+```
+#In the relationship between DAS_28 and males' age. The difference of mean and median is very close. In specifically, the mean of age in DAS_28 was no measured is higher 0.22777 than DAS_28 was measured, and the median of age in DAS_28 was no measured is same.
+
+
+
+# Summary
+The people from the age group 40-70 years are hugely suffering from RA than the age group 70+, and females are more likely to be RA than males. 87.54% of patients don’t have DAS28 measured, specifically, 87.15% of female patients and 89.21% of male patients lack DAS28 measured. I don’t think it is appropriate to generalize the trends between DAS28 and the number of years since diagnosis because there are many missing data in DAS-28 from age 71 to 74, and this will lead to bias and misinterpretation of the overall analysis.
+
+
+# Session Information
+
+```{r}
+sessionInfo()
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+```{r}
+fileopen_DAS28_YN <- fileopen %>% mutate(DAS28_YN_newf = factor(DAS28_YN, levels = c(1,2), labels = c("no", "yes")))
+
+
+ggplot(fileopen_DAS28_YN %>% drop_na(DAS28_YN_newf, Age), aes(y=Age, x=DAS28_YN_newf, fill=DAS28_YN_newf)) + 
+  geom_boxplot() +
+  geom_jitter(aes(color=DAS28_YN_newf), alpha=0.5, position = position_jitter(width = 0.5, height = 1))+
+  scale_fill_manual(breaks = data$DAS28_YN_newf,values = c("yellow", "red"))+
+  scale_color_manual(values=c('Black','Blue'))+
+  labs(x = "New_DAS28_YN_newf")+
+  labs(y = "New_Age")+
+  labs(title = "New_DAS28 VS Age")
+
+
+```
+```{r}
+set.seed(29384732)                                       
+data <- data.frame(value = rnorm(100),
+                   group = letters[1:5])
+
+
+
+head(data)
+
+
+
+ggplot(data, aes(x = group, y = value, fill = group)) +  # Change filling color
+  geom_boxplot()
+
+
+ggplot(data, aes(x = group, y = value, fill = group)) +  # Manually specified filling color
+  geom_boxplot() +
+  scale_fill_manual(breaks = data$group,
+                    values = c("#1b98e0", "#353436", "yellow", "red", "green"))
+
+```
+
